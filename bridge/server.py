@@ -173,6 +173,19 @@ def files_delete(path: str) -> str:
     shutil.rmtree(p) if p.is_dir() else p.unlink()
     return f"gelöscht: {p.relative_to(DATA)}"
 
+@mcp.tool()
+def pdf_text(path: str, pages: str = "", max_chars: int = 60000) -> str:
+    """Text aus einer PDF unter /data lesen (z. B. heruntergeladene Folien). pages z. B. "1-5" oder leer = alle."""
+    from pypdf import PdfReader
+    r = PdfReader(str(_safe(path))); n = len(r.pages)
+    a, b = 1, n
+    if pages:
+        parts = pages.split("-"); a = int(parts[0]); b = int(parts[-1])
+    out = []
+    for i in range(max(1, a), min(n, b) + 1):
+        out.append(f"--- Seite {i} ---\n" + (r.pages[i - 1].extract_text() or ""))
+    return _cut(f"[{n} Seiten]\n" + "\n".join(out), max_chars)
+
 # ---------------------------------------------------------------- Shell im Container
 async def _run(cmd: str, timeout: int = 120, cwd: Path | None = None) -> dict:
     proc = await asyncio.create_subprocess_shell(
