@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Joris · Dashboard</title>
+<style>
+:root{
+  --bg:#F2F2F7; --card:#FFFFFF; --card2:#F2F2F7; --label:#000; --label2:rgba(60,60,67,.6); --label3:rgba(60,60,67,.3);
+  --sep:rgba(60,60,67,.29); --fill:rgba(120,120,128,.12); --bar:rgba(249,249,249,.86);
+  --blue:#007AFF; --green:#34C759; --orange:#FF9500; --red:#FF3B30; --purple:#AF52DE; --pink:#FF2D55; --teal:#30B0C7; --indigo:#5856D6; --yellow:#FFCC00; --gray:#8E8E93;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#000; --card:#1C1C1E; --card2:#2C2C2E; --label:#FFF; --label2:rgba(235,235,245,.6); --label3:rgba(235,235,245,.3);
+    --sep:rgba(84,84,88,.6); --fill:rgba(120,120,128,.24); --bar:rgba(22,22,24,.86);
+    --blue:#0A84FF; --green:#30D158; --orange:#FF9F0A; --red:#FF453A; --purple:#BF5AF2; --pink:#FF375F; --teal:#40C8E0; --indigo:#5E5CE6; --yellow:#FFD60A; --gray:#98989D;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--label);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",system-ui,sans-serif;
+  font-size:17px;line-height:1.29;letter-spacing:-.41px;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit;letter-spacing:inherit}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px calc(100px + env(safe-area-inset-bottom))}
+/* Navigation */
+.nav{position:sticky;top:0;z-index:5;height:44px;margin:0 -16px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;
+  background:transparent;transition:background .2s}
+.nav.scrolled{background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--sep)}
+.nav .small{font-weight:600;opacity:0;transition:opacity .2s}
+.nav.scrolled .small{opacity:1}
+.navbtn{background:none;border:0;color:var(--blue);padding:8px 0 8px 12px;display:flex;align-items:center;gap:4px;cursor:pointer}
+.navbtn svg{width:22px;height:22px}
+.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.eyebrow{font-size:13px;font-weight:600;text-transform:uppercase;color:var(--label2);letter-spacing:-.08px;margin-top:2px}
+h1{font-size:34px;line-height:41px;font-weight:700;letter-spacing:.37px;margin:0 0 6px}
+/* Sections */
+.sec{margin-top:26px}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px 7px}
+.sec-h h2{font-size:22px;font-weight:700;letter-spacing:.35px;margin:0}
+.sec-h .hint{font-size:13px;color:var(--label2)}
+.foot{font-size:13px;color:var(--label2);padding:7px 16px 0;letter-spacing:-.08px}
+.group{background:var(--card);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 16px;position:relative}
+.row + .row::before{content:"";position:absolute;top:0;right:0;left:var(--inset,16px);border-top:.5px solid var(--sep)}
+.row .body{flex:1;min-width:0;padding:11px 0}
+.row .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .s{font-size:15px;color:var(--label2);margin-top:1px;letter-spacing:-.24px}
+.row .s.wrap2{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.row .v{color:var(--label2);white-space:nowrap}
+.row a,a.row{color:inherit;text-decoration:none}
+.row.link{cursor:pointer}
+.chev{width:8px;height:13px;color:var(--label3);flex:none}
+.ico{width:29px;height:29px;border-radius:7px;display:grid;place-items:center;flex:none;color:#fff;font-size:16px}
+.ico svg{width:18px;height:18px}
+.has-ico{--inset:57px}
+.pill{font-size:12px;font-weight:600;padding:3px 8px;border-radius:99px;white-space:nowrap}
+/* Briefing */
+.brief{background:var(--card);border-radius:12px;padding:16px}
+.brief .top{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--orange);text-transform:uppercase;letter-spacing:-.08px}
+.brief .top svg{width:16px;height:16px}
+.brief p{margin:8px 0 0;font-size:17px}
+.brief ul{margin:10px 0 0;padding:0;list-style:none}
+.brief li{position:relative;padding:5px 0 5px 18px;font-size:15px;letter-spacing:-.24px}
+.brief li::before{content:"";position:absolute;left:3px;top:12px;width:6px;height:6px;border-radius:50%;background:var(--blue)}
+.brief .imp{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--fill);font-size:15px;letter-spacing:-.24px}
+/* Tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.tile{background:var(--card);border-radius:12px;padding:12px 14px;min-height:84px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer}
+.tile .tt{display:flex;justify-content:space-between;align-items:center}
+.tile .ico{width:30px;height:30px;border-radius:50%}
+.tile .num{font-size:28px;font-weight:700;letter-spacing:.36px}
+.tile .lbl{font-size:15px;font-weight:600;color:var(--label2);letter-spacing:-.24px}
+/* Events */
+.ev{--inset:28px}
+.ev .bar{width:4px;align-self:stretch;margin:9px 0;border-radius:2px;flex:none}
+.ev .time{font-size:15px;color:var(--label2);text-align:right;flex:none;min-width:48px;letter-spacing:-.24px}
+.ev.now .time{color:var(--red);font-weight:600}
+.day-h{font-size:13px;color:var(--label2);text-transform:uppercase;padding:18px 16px 6px;letter-spacing:-.08px}
+.day-h b{color:var(--label);font-weight:600}
+.day-h.today b{color:var(--red)}
+/* Todos */
+.todo{--inset:52px}
+.chk{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--label3);flex:none;display:grid;place-items:center;background:none;padding:0;cursor:pointer;transition:all .15s}
+.chk.on{border-color:var(--blue);background:var(--blue)}
+.chk.on::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.todo.done .t{color:var(--label2);text-decoration:line-through}
+.todo .tag{font-size:13px;color:var(--label2)}
+.todo .due{color:var(--red)}
+.add input{border:0;background:none;outline:none;width:100%;padding:11px 0}
+.add .plus{width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:20px;line-height:1;flex:none}
+.seg{display:flex;background:var(--fill);border-radius:9px;padding:2px;margin:0 0 10px}
+.seg button{flex:1;border:0;background:none;padding:6px 0;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer}
+.seg button.on{background:var(--card);box-shadow:0 3px 8px rgba(0,0,0,.12),0 3px 1px rgba(0,0,0,.04);font-weight:600}
+@media (prefers-color-scheme: dark){.seg button.on{background:#636366}}
+/* Progress */
+.ring{width:64px;height:64px;flex:none}
+.prog{display:flex;align-items:center;gap:16px;padding:14px 16px}
+.bar2{height:6px;border-radius:3px;background:var(--fill);overflow:hidden;margin-top:6px}
+.bar2 i{display:block;height:100%;border-radius:3px;background:var(--green)}
+/* States */
+.empty{padding:14px 16px;color:var(--label2);font-size:15px;letter-spacing:-.24px}
+.err{padding:12px 16px;color:var(--label2);font-size:15px;display:flex;gap:10px;align-items:flex-start;letter-spacing:-.24px}
+.err .dot{width:8px;height:8px;border-radius:50%;background:var(--orange);margin-top:6px;flex:none}
+.err button{margin-top:6px;border:0;background:var(--fill);color:var(--blue);border-radius:99px;padding:5px 12px;font-size:15px;font-weight:600;cursor:pointer}
+.skel{height:14px;border-radius:4px;background:var(--fill);margin:15px 16px;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+.stale{opacity:.6}
+/* Tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  border-top:.5px solid var(--sep);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar .in{max-width:560px;margin:0 auto;display:flex}
+.tab{flex:1;border:0;background:none;padding:7px 0 5px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--gray);font-size:10px;font-weight:500;letter-spacing:.1px;cursor:pointer}
+.tab svg{width:26px;height:26px}
+.tab.on{color:var(--blue)}
+.view{display:none}
+.view.on{display:block;animation:fade .18s ease}
+@keyframes fade{from{opacity:.4}to{opacity:1}}
+.toast{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translate(-50%,-120%);z-index:20;background:var(--card2);color:var(--label);
+  padding:12px 18px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.18);font-size:15px;font-weight:500;transition:transform .3s cubic-bezier(.2,.9,.3,1.2);max-width:90%}
+.toast.on{transform:translate(-50%,0)}
+.banner{margin-top:14px;background:var(--card);border-radius:12px;padding:14px 16px;font-size:15px;color:var(--label2);letter-spacing:-.24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav" id="nav"><span class="small" id="navTitle">Heute</span>
+    <button class="navbtn" id="refresh" aria-label="Aktualisieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+  </div>
+
+  <!-- HEUTE -->
+  <section class="view on" id="v-heute" data-title="Heute">
+    <div class="eyebrow" id="today"></div>
+    <h1 id="greet">Hallo Joris</h1>
+    <div id="briefing"><div class="brief"><div class="skel"></div><div class="skel" style="width:60%"></div></div></div>
+    <div class="tiles">
+      <div class="tile" data-go="woche"><div class="tt"><div class="ico" style="background:var(--red)">📅</div><div class="num" id="n-ev">–</div></div><div class="lbl">Termine heute</div></div>
+      <div class="tile" data-jump="todos"><div class="tt"><div class="ico" style="background:var(--blue)">✓</div><div class="num" id="n-todo">–</div></div><div class="lbl">Offene To-dos</div></div>
+      <div class="tile" data-jump="mails"><div class="tt"><div class="ico" style="background:var(--indigo)">✉️</div><div class="num" id="n-mail">–</div></div><div class="lbl">Ungelesen</div></div>
+      <div class="tile" data-go="system"><div class="tt"><div class="ico" style="background:var(--green)" id="srvIco">●</div><div class="num" id="n-srv" style="font-size:20px">–</div></div><div class="lbl">Server</div></div>
+    </div>
+    <div class="sec"><div class="sec-h"><h2>Heute</h2><span class="hint" id="h-ev"></span></div><div class="group" id="evToday"><div class="skel"></div></div></div>
+    <div class="sec" id="todos"><div class="sec-h"><h2>To-dos</h2><span class="hint" id="h-todo"></span></div>
+      <div class="seg" id="todoSeg"><button class="on" data-f="offen">Offen</button><button data-f="alle">Alle</button><button data-f="erledigt">Erledigt</button></div>
+      <div class="group" id="todoList"><div class="skel"></div></div>
+    </div>
+    <div class="sec" id="mails"><div class="sec-h"><h2>Mails</h2><span class="hint" id="h-mail"></span></div><div class="group" id="mailList"><div class="skel"></div></div></div>
+  </section>
+
+  <!-- WOCHE & UNI -->
+  <section class="view" id="v-woche" data-title="Woche">
+    <div class="eyebrow" id="weekRange"></div>
+    <h1>Woche</h1>
+    <div class="sec"><div class="sec-h"><h2>Uni</h2><span class="hint" id="h-uni"></span></div><div class="group" id="uni"><div class="skel"></div></div><div class="foot" id="uniFoot"></div></div>
+    <div class="sec"><div class="sec-h"><h2>Nächste 7 Tage</h2></div><div id="week"><div class="group"><div class="skel"></div></div></div></div>
+  </section>
+
+  <!-- PROJEKTE -->
+  <section class="view" id="v-projekte" data-title="Projekte">
+    <div class="eyebrow">Status</div>
+    <h1>Projekte</h1>
+    <div class="sec"><div class="group" id="fahrplan"><div class="skel"></div></div></div>
+    <div class="sec"><div class="sec-h"><h2>Laufend</h2></div><div class="group has-ico" id="projects"><div class="skel"></div></div></div>
+    <div class="sec"><div class="sec-h"><h2>Geld &amp; KI-Business</h2></div><div class="group has-ico" id="business"><div class="skel"></div></div></div>
+  </section>
+
+  <!-- FITNESS -->
+  <section class="view" id="v-fitness" data-title="Fitness">
+    <div class="eyebrow">Training &amp; Ernährung</div>
+    <h1>Fitness</h1>
+    <div id="fitness"><div class="group"><div class="skel"></div></div></div>
+    <div class="sec"><div class="sec-h"><h2>Apps</h2></div>
+      <div class="group has-ico">
+        <a class="row link" href="https://claude.ai/artifact/SHGyZFrDRUitZFmvbgmqAC" target="_blank" rel="noopener"><div class="ico" style="background:var(--green)">🥗</div><div class="body"><div class="t">Ernährungs-App</div><div class="s">Essensplan, Einkaufsliste, Gewicht</div></div><svg class="chev" viewBox="0 0 8 13"><path d="M1 1l6 5.5L1 12" fill="none" stroke="currentColor" stroke-width="2"/></svg></a>
+        <a class="row link" href="https://claude.ai/artifact/T3Z2xJK1KNDFg1HyW4TFfx" target="_blank" rel="noopener"><div class="ico" style="background:var(--orange)">🧠</div><div class="body"><div class="t">B-Lizenz KI-Tutor</div><div class="s">Karteikarten &amp; Prüfungssimulation</div></div><svg class="chev" viewBox="0 0 8 13"><path d="M1 1l6 5.5L1 12" fill="none" stroke="currentColor" stroke-width="2"/></svg></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- SYSTEM -->
+  <section class="view" id="v-system" data-title="System">
+    <div class="eyebrow">Server &amp; Automatisierungen</div>
+    <h1>System</h1>
+    <div class="sec"><div class="sec-h"><h2>Server</h2><span class="hint" id="h-srv"></span></div><div class="group has-ico" id="server"><div class="skel"></div></div></div>
+    <div class="sec"><div class="sec-h"><h2>Datei-Sync</h2></div><div class="group has-ico" id="sync"><div class="skel"></div></div></div>
+    <div class="sec"><div class="sec-h"><h2>GMX-Postfächer</h2><span class="hint" id="h-gmx"></span></div><div class="group has-ico" id="gmx"><div class="skel"></div></div><div class="foot">Lädt etwas länger, weil alle Konten abgefragt werden.</div></div>
+    <div class="sec"><div class="sec-h"><h2>Automatisierungen</h2></div><div class="group has-ico" id="autos"><div class="skel"></div></div></div>
+  </section>
+</div>
+
+<nav class="tabbar"><div class="in">
+  <button class="tab on" data-tab="heute"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-6a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0V2a1 1 0 0 1 1-1Zm0 18a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0v-2a1 1 0 0 1 1-1ZM3.5 3.5a1 1 0 0 1 1.4 0l1.4 1.4a1 1 0 1 1-1.4 1.4L3.5 4.9a1 1 0 0 1 0-1.4Zm14.2 14.2a1 1 0 0 1 1.4 0l1.4 1.4a1 1 0 1 1-1.4 1.4l-1.4-1.4a1 1 0 0 1 0-1.4ZM1 12a1 1 0 0 1 1-1h2a1 1 0 1 1 0 2H2a1 1 0 0 1-1-1Zm18 0a1 1 0 0 1 1-1h2a1 1 0 1 1 0 2h-2a1 1 0 0 1-1-1ZM3.5 20.5a1 1 0 0 1 0-1.4l1.4-1.4a1 1 0 1 1 1.4 1.4l-1.4 1.4a1 1 0 0 1-1.4 0ZM17.7 6.3a1 1 0 0 1 0-1.4l1.4-1.4a1 1 0 1 1 1.4 1.4l-1.4 1.4a1 1 0 0 1-1.4 0Z"/></svg>Heute</button>
+  <button class="tab" data-tab="woche"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V3a1 1 0 0 1 1-1ZM4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9H4Zm3 2h2v2H7v-2Zm4 0h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-8 4h2v2H7v-2Zm4 0h2v2h-2v-2Z"/></svg>Woche</button>
+  <button class="tab" data-tab="projekte"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg>Projekte</button>
+  <button class="tab" data-tab="fitness"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 4.5 6.7 4.5c2.1 0 3.5 1.1 4.3 2.4.4.6 1.6.6 2 0 .8-1.3 2.2-2.4 4.3-2.4 3.7 0 5.8 3.8 4.3 7.2C19.5 16.4 12 21 12 21Z"/></svg>Fitness</button>
+  <button class="tab" data-tab="system"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm-2 7h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2Zm2 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/></svg>System</button>
+</div></nav>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+const SRV = "Joris Server", CAL = "Google Calendar", GM = "Gmail";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const CHEV = '<svg class="chev" viewBox="0 0 8 13"><path d="M1 1l6 5.5L1 12" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+const COLORS = {blue:"var(--blue)",green:"var(--green)",orange:"var(--orange)",red:"var(--red)",purple:"var(--purple)",gray:"var(--gray)",teal:"var(--teal)",pink:"var(--pink)",indigo:"var(--indigo)"};
+const fmtD = (o) => new Intl.DateTimeFormat("de-DE", o);
+const pad = (n) => String(n).padStart(2, "0");
+const localISO = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+let mcp = null; const unsubs = [];
+
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2600); }
+
+function unwrap(p){
+  if (p && typeof p === "object" && !Array.isArray(p) && "result" in p && Object.keys(p).length === 1) p = p.result;
+  if (typeof p === "string") { try { return JSON.parse(p); } catch { return p; } }
+  return p;
+}
+function ago(ts){
+  if (!ts) return "";
+  const m = Math.round((Date.now() - ts) / 60000);
+  if (m < 1) return "gerade eben"; if (m < 60) return `vor ${m} Min.`;
+  const h = Math.round(m / 60); if (h < 24) return `vor ${h} Std.`;
+  return fmtD({day:"numeric",month:"short"}).format(new Date(ts));
+}
+function errHtml(e, server, retry){
+  const c = e && e.code;
+  let msg = "Konnte nicht geladen werden.";
+  if (c === "needs_reauth") msg = `${server} neu verbinden: claude.ai → Einstellungen → Connectoren.`;
+  else if (c === "server_not_connected") msg = `${server} ist nicht verbunden. In claude.ai unter Einstellungen → Connectoren hinzufügen.`;
+  else if (c === "selection_required") msg = `Bitte auswählen, welcher ${server}-Connector genutzt werden soll.`;
+  else if (c === "not_in_manifest") msg = `Zugriff auf ${server} ist für diese App nicht erlaubt.`;
+  else if (c === "approval_required") msg = `${server} braucht deine Freigabe.`;
+  else if (c === "blocked_by_policy") msg = `${server} ist gesperrt.`;
+  else if (c === "server_unavailable") msg = `${server} gerade nicht erreichbar – versucht es gleich nochmal.`;
+  else if (c === "tool_error") msg = (e.message || "Fehler").slice(0, 160);
+  const btn = (c === "approval_required" || c === "server_unavailable" || c === "upstream_error" || c === "tool_error") && retry
+    ? `<br><button data-retry="${retry}">${c === "approval_required" ? "Freigeben" : "Nochmal"}</button>` : "";
+  return `<div class="err"><span class="dot"></span><div>${esc(msg)}${btn}</div></div>`;
+}
+const DENY = new Set(["needs_reauth","server_not_connected","blocked_by_policy","approval_required","not_in_manifest","selection_required","not_granted","capability_disabled"]);
+
+/* Generic watched section */
+const retries = {};
+function watch(key, server, tool, input, render, opts = {}){
+  const el = typeof opts.el === "string" ? $(opts.el) : null;
+  let last = null;
+  retries[key] = async () => {
+    try { const r = await mcp.callTool(server, tool, input, {cache:{refresh:true, staleTime: opts.stale||60000, gcTime: 7*864e5}}); last = r; render(unwrap(r.payload), r); }
+    catch (e) { if (el) el.innerHTML = errHtml(e, server, key); if (opts.onErr) opts.onErr(e); }
+  };
+  const u = mcp.watchTool(server, tool, input, (ev) => {
+    if (ev.type === "data") { last = ev.result; render(unwrap(ev.result.payload), ev.result); }
+    else {
+      const e = ev.error;
+      if (DENY.has(e.code) || !last) { if (el) el.innerHTML = errHtml(e, server, key); if (opts.onErr) opts.onErr(e); }
+    }
+  }, {cache:{staleTime: opts.stale||60000, gcTime: 7*864e5}, refetchInterval: opts.poll});
+  unsubs.push(u);
+}
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-retry]"); if (b && retries[b.dataset.retry]) { b.disabled = true; b.textContent = "…"; retries[b.dataset.retry](); }
+});
+
+/* ---------- Tabs & Navigation ---------- */
+function go(tab){
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.tab === tab));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + tab));
+  $("navTitle").textContent = $("v-" + tab).dataset.title;
+  window.scrollTo({top:0});
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => go(t.dataset.tab));
+document.querySelectorAll("[data-go]").forEach(t => t.onclick = () => go(t.dataset.go));
+document.querySelectorAll("[data-jump]").forEach(t => t.onclick = () => $(t.dataset.jump).scrollIntoView({behavior:"smooth", block:"start"}));
+addEventListener("scroll", () => $("nav").classList.toggle("scrolled", scrollY > 30), {passive:true});
+
+/* ---------- Kopf ---------- */
+const now = new Date();
+$("today").textContent = fmtD({weekday:"long", day:"numeric", month:"long"}).format(now);
+const h = now.getHours();
+$("greet").textContent = h < 11 ? "Guten Morgen, Joris" : h < 18 ? "Hallo, Joris" : "Guten Abend, Joris";
+const wEnd = new Date(now); wEnd.setDate(wEnd.getDate() + 6);
+$("weekRange").textContent = `${fmtD({day:"numeric",month:"short"}).format(now)} – ${fmtD({day:"numeric",month:"short"}).format(wEnd)}`;
+
+/* ---------- Renderer ---------- */
+function renderBriefing(b){
+  if (!b || typeof b !== "object") { $("briefing").innerHTML = '<div class="brief"><div class="empty" style="padding:0">Noch kein Briefing.</div></div>'; return; }
+  const old = b.datum && b.datum !== dayKey(new Date());
+  $("briefing").innerHTML = `<div class="brief${old ? " stale" : ""}">
+    <div class="top"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>Morgen-Briefing${old ? " · von " + esc(fmtD({weekday:"short",day:"numeric",month:"short"}).format(new Date(b.datum))) : ""}</div>
+    ${b.zusammenfassung ? `<p>${esc(b.zusammenfassung)}</p>` : ""}
+    ${Array.isArray(b.punkte) && b.punkte.length ? `<ul>${b.punkte.map(p => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}
+    ${b.wichtig ? `<div class="imp">⭐️ ${esc(b.wichtig)}</div>` : ""}
+  </div>`;
+}
+
+const EVCOL = ["var(--blue)","var(--green)","var(--purple)","var(--orange)","var(--pink)","var(--teal)","var(--indigo)","var(--red)","var(--yellow)","var(--green)","var(--blue)","var(--red)"];
+function evColor(e){
+  const s = e.summary || "";
+  if (/vorlesung|übung|tutorium|seminar/i.test(s)) return "var(--blue)";
+  if (/lernen|📖/i.test(s)) return "var(--orange)";
+  if (/training|gym|fitness|push|pull|legs/i.test(s)) return "var(--green)";
+  if (e.colorId) return EVCOL[(+e.colorId - 1) % EVCOL.length];
+  return "var(--purple)";
+}
+const evStart = (e) => new Date(e.start?.dateTime || (e.start?.date + "T00:00:00"));
+const evEnd = (e) => new Date(e.end?.dateTime || (e.end?.date + "T00:00:00"));
+function evRow(e){
+  const allDay = !e.start?.dateTime, s = evStart(e), en = evEnd(e), n = new Date();
+  const live = !allDay && s <= n && en > n;
+  const time = allDay ? "ganztägig" : `${fmtD({hour:"2-digit",minute:"2-digit"}).format(s)}<br><span style="color:var(--label3)">${fmtD({hour:"2-digit",minute:"2-digit"}).format(en)}</span>`;
+  const loc = e.location ? esc(e.location.split(",")[0]) : "";
+  return `<a class="row ev link${live ? " now" : ""}" href="${esc(e.htmlLink || "#")}" target="_blank" rel="noopener">
+    <span class="bar" style="background:${evColor(e)}"></span>
+    <div class="body"><div class="t">${esc(e.summary || "(ohne Titel)")}</div>${loc || live ? `<div class="s">${live ? '<span style="color:var(--red)">Jetzt · </span>' : ""}${loc}</div>` : ""}</div>
+    <div class="time">${time}</div></a>`;
+}
+function renderCalendar(p){
+  const evs = (p && p.events || []).filter(e => e.status !== "cancelled").sort((a,b) => evStart(a) - evStart(b));
+  const todayK = dayKey(new Date());
+  const today = evs.filter(e => dayKey(evStart(e)) === todayK && evEnd(e) > new Date(new Date().setHours(0,0,0,0)));
+  const upcomingToday = today.filter(e => evEnd(e) > new Date());
+  $("n-ev").textContent = upcomingToday.length;
+  $("h-ev").textContent = today.length ? `${today.length} Termin${today.length > 1 ? "e" : ""}` : "";
+  $("evToday").innerHTML = today.length ? today.map(evRow).join("") : '<div class="empty">Heute keine Termine mehr 🎉</div>';
+  // Woche
+  const days = {};
+  for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() + i); days[dayKey(d)] = {d, evs: []}; }
+  evs.forEach(e => { const k = dayKey(evStart(e)); if (days[k]) days[k].evs.push(e); });
+  $("week").innerHTML = Object.entries(days).map(([k, {d, evs}], i) => {
+    const label = i === 0 ? "Heute" : i === 1 ? "Morgen" : fmtD({weekday:"long"}).format(d);
+    return `<div class="day-h${i === 0 ? " today" : ""}"><b>${label}</b> · ${fmtD({day:"numeric",month:"long"}).format(d)}</div>
+      <div class="group">${evs.length ? evs.map(evRow).join("") : '<div class="empty">Frei</div>'}</div>`;
+  }).join("");
+  // Uni-Termine zählen
+  const uniEvs = evs.filter(e => /vorlesung|übung|tutorium|seminar|lernen|klausur|📖/i.test(e.summary || ""));
+  $("h-uni").textContent = uniEvs.length ? `${uniEvs.length} Uni-Termine diese Woche` : "";
+}
+
+/* To-dos */
+const TODO_PATH = "dashboard/todos.json";
+let todoDoc = null, todoFilter = "offen";
+const AREA = {Uni:"var(--blue)", Fitness:"var(--green)", System:"var(--gray)", Projekte:"var(--purple)", Geld:"var(--orange)"};
+function renderTodos(doc){
+  if (doc && typeof doc === "object") todoDoc = doc;
+  const list = (todoDoc && todoDoc.todos) || [];
+  const open = list.filter(t => !t.erledigt);
+  $("n-todo").textContent = open.length;
+  $("h-todo").textContent = `${open.length} offen`;
+  const shown = list.filter(t => todoFilter === "alle" ? true : todoFilter === "offen" ? !t.erledigt : t.erledigt)
+    .sort((a,b) => (a.erledigt - b.erledigt) || String(a.faellig || "9").localeCompare(String(b.faellig || "9")));
+  const tk = dayKey(new Date());
+  $("todoList").innerHTML = shown.map(t => {
+    const due = t.faellig ? (t.faellig <= tk ? `<span class="due">${t.faellig < tk ? "überfällig" : "heute"}</span>` : fmtD({weekday:"short",day:"numeric",month:"short"}).format(new Date(t.faellig + "T12:00:00"))) : "";
+    const meta = [t.bereich ? `<span style="color:${AREA[t.bereich] || "var(--label2)"}">${esc(t.bereich)}</span>` : "", due].filter(Boolean).join(" · ");
+    return `<div class="row todo${t.erledigt ? " done" : ""}"><button class="chk${t.erledigt ? " on" : ""}" data-todo="${esc(t.id)}" aria-label="abhaken"></button>
+      <div class="body"><div class="t" style="white-space:normal">${esc(t.text)}</div>${meta ? `<div class="s tag">${meta}</div>` : ""}</div></div>`;
+  }).join("") + (todoFilter !== "erledigt" ? `<div class="row add todo"><span class="plus">+</span><div class="body" style="padding:0"><input id="newTodo" placeholder="Neue Erinnerung" enterkeyhint="done"></div></div>` :
+    (shown.length ? "" : '<div class="empty">Noch nichts erledigt.</div>'));
+  const inp = $("newTodo"); if (inp) inp.onkeydown = (e) => { if (e.key === "Enter" && inp.value.trim()) { addTodo(inp.value.trim()); inp.value = ""; } };
+}
+$("todoSeg").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; todoFilter = b.dataset.f;
+  $("todoSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); renderTodos(); };
+async function saveTodos(mutate){
+  // frisch lesen, Änderung anwenden, zurückschreiben
+  const r = await mcp.callTool(SRV, "files_read", {path: TODO_PATH}, {cache:false});
+  const doc = unwrap(r.payload);
+  if (!doc || !Array.isArray(doc.todos)) throw {message:"To-do-Datei unlesbar"};
+  mutate(doc); doc.aktualisiert = new Date().toISOString();
+  await mcp.callTool(SRV, "files_write", {path: TODO_PATH, content: JSON.stringify(doc, null, 2)});
+  todoDoc = doc; renderTodos();
+  mcp.invalidate(SRV, "files_read", {path: TODO_PATH}).catch(() => {});
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-todo]"); if (!b || !mcp) return;
+  const id = b.dataset.todo, want = !b.classList.contains("on");
+  b.classList.toggle("on", want); b.closest(".todo").classList.toggle("done", want);
+  if (navigator.vibrate) navigator.vibrate(8);
+  try { await saveTodos(doc => { const t = doc.todos.find(x => x.id === id); if (t) { t.erledigt = want; t.erledigt_am = want ? dayKey(new Date()) : undefined; } }); }
+  catch (e) { b.classList.toggle("on", !want); b.closest(".todo").classList.toggle("done", !want); toast(e.code === "approval_required" ? "Bitte Schreibzugriff erlauben" : "Konnte nicht speichern"); }
+});
+async function addTodo(text){
+  if (!mcp) return;
+  const id = "t" + Date.now().toString(36);
+  try { await saveTodos(doc => doc.todos.push({id, text, erledigt:false, erstellt: dayKey(new Date())})); toast("Hinzugefügt"); }
+  catch (e) { toast(e.code === "approval_required" ? "Bitte Schreibzugriff erlauben" : "Konnte nicht speichern"); }
+}
+
+/* Mails */
+let gmailN = null, gmxN = null;
+function updMailTile(){ const n = (gmailN || 0) + (gmxN || 0); $("n-mail").textContent = gmailN == null && gmxN == null ? "–" : n > 999 ? Math.round(n/100)/10 + "k" : n; }
+function senderName(s){ const m = String(s || "").match(/^"?([^"<]+?)"?\s*</); return (m ? m[1] : String(s || "").split("@")[0]).trim(); }
+function renderGmail(p){
+  const th = (p && p.threads) || [];
+  gmailN = +(p && p.resultCountEstimate) || th.length; updMailTile();
+  $("h-mail").textContent = `Gmail ${gmailN}${gmxN != null ? " · GMX " + gmxN : ""}`;
+  $("mailList").innerHTML = th.length ? th.slice(0, 6).map(t => { const m = (t.messages || [])[0] || {};
+    return `<a class="row link" href="${esc(t.viewUrl || m.viewUrl || "#")}" target="_blank" rel="noopener"><div class="body">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b class="t" style="font-weight:600">${esc(senderName(m.sender))}</b><span class="v" style="font-size:15px">${m.date ? esc(fmtD({hour:"2-digit",minute:"2-digit"}).format(new Date(m.date))) : ""}</span></div>
+      <div class="t" style="font-size:15px">${esc(m.subject || "(kein Betreff)")}</div>
+      <div class="s wrap2">${esc((m.snippet || "").replace(/[͏‌\s]+/g, " ").trim())}</div></div></a>`; }).join("")
+    : '<div class="empty">Posteingang leer – stark 💪</div>';
+}
+
+/* GMX */
+function renderGmx(list){
+  list = Array.isArray(list) ? list : [];
+  gmxN = list.reduce((s, a) => s + (+a.ungelesen || 0), 0); updMailTile();
+  $("h-gmx").textContent = `${gmxN} ungelesen`;
+  const h = $("h-mail"); if (gmailN != null) h.textContent = `Gmail ${gmailN} · GMX ${gmxN}`;
+  $("gmx").innerHTML = list.length ? list.map(a => `<div class="row"><div class="ico" style="background:var(--blue)">✉️</div>
+      <div class="body"><div class="t">${esc(a.bezeichnung || a.label || a.adresse || a.user || ("Konto " + a.konto))}</div>
+      <div class="s t">${a.fehler ? '<span style="color:var(--red)">Fehler beim Abruf</span>' : esc(((a.neueste || [])[0] || {}).betreff || a.adresse || "")}</div></div>
+      <span class="v">${a.fehler ? "!" : esc(a.ungelesen ?? "")}</span></div>`).join("")
+    : '<div class="empty">Keine GMX-Konten eingerichtet.</div>';
+}
+
+/* Server */
+function kb2gb(s){ const n = parseFloat(String(s)); return isFinite(n) ? (n / 1048576).toFixed(1) : "?"; }
+function renderServer(s){
+  if (!s || typeof s !== "object") return;
+  const freeRam = kb2gb(s.speicher?.MemAvailable), totRam = kb2gb(s.speicher?.MemTotal);
+  const usedDisk = s.data_gesamt_gb ? Math.round((1 - s.data_frei_gb / s.data_gesamt_gb) * 100) : 0;
+  $("n-srv").textContent = "Online"; $("srvIco").textContent = "✓";
+  $("server").innerHTML = `
+    <div class="row"><div class="ico" style="background:var(--green)">✓</div><div class="body"><div class="t">Hetzner · jarvis-core-01</div><div class="s">läuft · ${esc(String(s.version || "").split(" ")[0])}</div></div></div>
+    <div class="row"><div class="ico" style="background:var(--indigo)">💾</div><div class="body"><div class="t">Speicherplatz</div><div class="bar2"><i style="width:${usedDisk}%;background:${usedDisk > 85 ? "var(--red)" : "var(--green)"}"></i></div></div><span class="v">${esc(s.data_frei_gb)} GB frei</span></div>
+    <div class="row"><div class="ico" style="background:var(--teal)">⚡️</div><div class="body"><div class="t">Arbeitsspeicher</div></div><span class="v">${freeRam} / ${totRam} GB frei</span></div>`;
+}
+function renderSync(s){
+  if (!s || typeof s !== "object") return;
+  const devs = s.geraete || [];
+  $("sync").innerHTML = `<div class="row"><div class="ico" style="background:var(--blue)">🔄</div><div class="body"><div class="t">Server-Ablage</div><div class="s">${esc(s.ordner_status === "idle" ? "aktuell" : s.ordner_status || "")}</div></div></div>` +
+    devs.map(d => `<div class="row"><div class="ico" style="background:${d.verbunden ? "var(--green)" : "var(--gray)"}">${/pc|win/i.test(d.name || "") ? "🖥" : "💻"}</div><div class="body"><div class="t">${esc(d.name || d.id)}</div></div><span class="v" style="color:${d.verbunden ? "var(--green)" : "var(--label2)"}">${d.verbunden ? "verbunden" : "offline"}</span></div>`).join("");
+}
+
+/* Status-Datei: Projekte, Business, Fahrplan, Automatisierungen */
+function ring(p){ const r = 26, c = 2 * Math.PI * r; return `<svg class="ring" viewBox="0 0 64 64"><circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--fill)" stroke-width="8"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--green)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c * p} ${c}" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle" font-size="15" font-weight="700" fill="currentColor">${Math.round(p * 100)}%</text></svg>`; }
+function pill(text, col){ const c = COLORS[col] || "var(--gray)"; return `<span class="pill" style="color:${c};background:color-mix(in srgb, ${c} 16%, transparent)">${esc(text)}</span>`; }
+function renderStatus(s){
+  if (!s || typeof s !== "object") return;
+  const f = s.fahrplan;
+  if (f) $("fahrplan").innerHTML = `<div class="prog">${ring(f.erledigt / f.gesamt)}<div style="flex:1;min-width:0"><div style="font-weight:600">Fahrplan Claude-Optimierung</div><div class="s" style="font-size:15px;color:var(--label2)">${f.erledigt} von ${f.gesamt} Schritten erledigt</div><div class="s" style="font-size:15px;margin-top:4px">Jetzt: ${esc(f.aktuell)}</div></div></div>` +
+    (f.naechste || []).map(n => `<div class="row"><div class="body"><div class="t" style="font-size:15px;color:var(--label2)">Danach · ${esc(n)}</div></div></div>`).join("");
+  $("projects").innerHTML = (s.projekte || []).map(p => `<div class="row"><div class="ico" style="background:var(--fill)">${esc(p.symbol || "•")}</div>
+    <div class="body"><div class="t">${esc(p.name)}</div><div class="s wrap2">${esc(p.info)}</div></div>${pill(p.status, p.farbe)}</div>`).join("") || '<div class="empty">Keine Projekte.</div>';
+  $("business").innerHTML = (s.business || []).map(p => `<div class="row"><div class="ico" style="background:var(--orange)">💡</div>
+    <div class="body"><div class="t">${esc(p.name)}</div><div class="s wrap2">${esc(p.info)}</div></div>${pill(p.status, "orange")}</div>`).join("") || '<div class="empty">Noch nichts.</div>';
+  $("autos").innerHTML = (s.automatisierungen || []).map(a => `<div class="row"><div class="ico" style="background:var(--purple)">⏱</div><div class="body"><div class="t">${esc(a.name)}</div></div><span class="v">${esc(a.wann)}</span></div>`).join("");
+}
+function renderUni(u){
+  if (!u || typeof u !== "object") return;
+  const fr = (u.fristen || []).slice().sort((a,b) => String(a.datum).localeCompare(String(b.datum)));
+  const neu = u.neu_auf_studip || [];
+  $("uni").innerHTML =
+    fr.map(f => `<div class="row"><div class="body"><div class="t">${esc(f.titel)}</div><div class="s">${esc(f.kurs || "")}</div></div><span class="v" style="color:var(--red)">${esc(f.datum ? fmtD({day:"numeric",month:"short"}).format(new Date(f.datum + "T12:00:00")) : "")}</span></div>`).join("") +
+    neu.slice(0, 5).map(n => `<div class="row"><div class="body"><div class="t">🆕 ${esc(n.titel || n)}</div>${n.kurs ? `<div class="s">${esc(n.kurs)}</div>` : ""}</div></div>`).join("") +
+    (u.kurse || []).map(k => `<div class="row"><div class="body"><div class="t">${esc(k.name)}</div><div class="s">${esc(k.kuerzel)}</div></div></div>`).join("");
+  $("uniFoot").textContent = (u.semester || "") + (u.aktualisiert ? " · Stand " + ago(Date.parse(u.aktualisiert)) : "");
+}
+function renderFitness(f){
+  if (!f || typeof f !== "object") return;
+  const z = f.ziele || {}, t = f.heute || null, w = (f.gewicht || []).slice(-1)[0];
+  const prot = t && t.protein_g != null ? Math.min(1, t.protein_g / (z.protein_g || 150)) : null;
+  $("fitness").innerHTML = `
+    <div class="sec" style="margin-top:16px"><div class="group">
+      <div class="prog">${ring(prot ?? 0)}<div style="flex:1"><div style="font-weight:600">Protein heute</div><div style="font-size:15px;color:var(--label2)">${prot == null ? "Noch keine Werte aus der Ernährungs-App" : `${esc(t.protein_g)} von ${esc(z.protein_g)} g`}</div>
+      ${t && t.kcal != null ? `<div style="font-size:15px;margin-top:4px">${esc(t.kcal)} kcal</div>` : ""}</div></div>
+    </div></div>
+    <div class="sec"><div class="sec-h"><h2>Ziele bis Jahresende</h2></div><div class="group has-ico">
+      <div class="row"><div class="ico" style="background:var(--green)">🏋️</div><div class="body"><div class="t">${esc(f.training?.plan || "Training")}</div></div><span class="v">${esc(f.training?.pro_woche || "")}× / Woche</span></div>
+      <div class="row"><div class="ico" style="background:var(--blue)">⚖️</div><div class="body"><div class="t">Gewicht</div>${w ? `<div class="s">zuletzt ${esc(w.kg)} kg · ${esc(w.datum)}</div>` : ""}</div><span class="v">+${esc(z.gewicht_plus_kg)} kg</span></div>
+      <div class="row"><div class="ico" style="background:var(--orange)">📉</div><div class="body"><div class="t">Körperfett</div></div><span class="v">−${esc(z.kfa_minus_prozent)} %</span></div>
+      <div class="row"><div class="ico" style="background:var(--pink)">🥩</div><div class="body"><div class="t">Protein</div></div><span class="v">~${esc(z.protein_g)} g / Tag</span></div>
+    </div></div>`;
+}
+
+/* ---------- Start ---------- */
+function start(){
+  const d0 = new Date(); d0.setHours(0,0,0,0); const d7 = new Date(d0); d7.setDate(d7.getDate() + 7);
+  const file = (path, fn, el) => watch(path, SRV, "files_read", {path}, fn, {el, stale: 120000, poll: 300000,
+    onErr: (e) => { if (e.code === "tool_error" && el) $(el).innerHTML = '<div class="empty">Noch keine Daten.</div>'; }});
+  file("dashboard/briefing.json", renderBriefing, "briefing");
+  file(TODO_PATH, renderTodos, "todoList");
+  file("dashboard/status.json", renderStatus, "projects");
+  file("dashboard/uni.json", renderUni, "uni");
+  file("dashboard/fitness.json", renderFitness, "fitness");
+  watch("cal", CAL, "list_events", {startTime: localISO(d0), endTime: localISO(d7), orderBy: "startTime", pageSize: 100}, renderCalendar, {el: "evToday", stale: 120000, poll: 600000,
+    onErr: () => { $("week").innerHTML = '<div class="group"><div class="empty">Kalender nicht verfügbar.</div></div>'; }});
+  watch("gmail", GM, "search_threads", {query: "is:unread in:inbox category:primary", pageSize: 6, view: "THREAD_VIEW_SUMMARY"}, renderGmail, {el: "mailList", stale: 120000, poll: 600000});
+  watch("srv", SRV, "server_status", null, renderServer, {el: "server", stale: 60000, poll: 300000,
+    onErr: () => { $("n-srv").textContent = "?"; $("srvIco").textContent = "!"; $("srvIco").style.background = "var(--orange)"; }});
+  watch("sync", SRV, "sync_status", null, renderSync, {el: "sync", stale: 300000});
+  watch("gmx", SRV, "gmx_overview", null, renderGmx, {el: "gmx", stale: 900000, poll: 1800000});
+}
+$("refresh").onclick = async () => {
+  if (!mcp) return; const b = $("refresh"); b.classList.add("spin");
+  try { await mcp.invalidate(); } catch {}
+  setTimeout(() => b.classList.remove("spin"), 1200);
+};
+
+(async () => {
+  for (let i = 0; i < 30 && !window.claude; i++) await new Promise(r => setTimeout(r, 100));
+  try { mcp = window.claude ? await window.claude.use("mcp") : null; } catch { mcp = null; }
+  if (!mcp) {
+    document.querySelectorAll(".skel").forEach(s => s.remove());
+    $("briefing").innerHTML = '<div class="banner">Diese App lädt deine Daten über deine Connectoren. Öffne sie in Claude (App oder claude.ai), damit Kalender, Mails, Server und To-dos erscheinen.</div>';
+    return;
+  }
+  start();
+})();
+})();
+</script>
+</body>
+</html>
