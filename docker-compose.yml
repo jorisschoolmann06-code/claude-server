@@ -35,6 +35,12 @@ services:
     ports:
       - "${BIND_IP:-0.0.0.0}:22000:22000/tcp"
       - "${BIND_IP:-0.0.0.0}:22000:22000/udp"
+  playwright:
+    # Offizieller Playwright-MCP (Microsoft) als eigener Connector, nur über Caddy mit Token-Pfad erreichbar
+    image: mcr.microsoft.com/playwright/mcp:latest
+    restart: unless-stopped
+    command: ["--headless", "--isolated", "--host", "0.0.0.0", "--port", "8931", "--allowed-hosts", "*"]
+    mem_limit: 1g
   caddy:
     image: caddy:2
     restart: unless-stopped

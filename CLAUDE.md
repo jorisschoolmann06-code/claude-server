@@ -9,6 +9,7 @@ Antworten und Commit-Texte auf Deutsch.
   - `bridge` – Python-MCP-Server (`bridge/server.py`, Paket `mcp` ≥ 2.3, Streamable HTTP, stateless, JSON-Antworten). Alle Tools sind hier.
   - `webdav` – rclone WebDAV für `/data/obsidian` unter `/dav/`.
   - `syncthing` – Datei-Sync, Ordner-ID `joris-ablage` („Server-Ablage“) ↔ `/data/sync`.
+  - `playwright` – offizieller Playwright-MCP (Microsoft), eigener Connector unter `/{TOKEN}/pw/mcp`.
   - `caddy` – HTTPS (Let's Encrypt) und Weiterleitung, siehe `Caddyfile`.
 - Daten liegen unter `./data` (im Container `/data`), nie im Repo.
 - `.env` (nicht im Repo) enthält Domain, Bridge-Token, WebDAV-Zugang usw.
@@ -33,7 +34,7 @@ Antworten und Commit-Texte auf Deutsch.
 server_status, files_list/read/write/move/delete, shell, http_fetch, browser_open/screenshot/script/download/login,
 studip_login, pdf_text, sync_status, sync_add_device, gmx_accounts/folders/list/read/move/create_folder/overview,
 jobs_list/set/remove/log/run_now (eigener Cron, Europe/Berlin), self_update,
-wetter (Open-Meteo), oepnv_verbindung / oepnv_abfahrten (Transitous, VBN-Fahrplan). Gespeicherte Orte (zuhause, uni …) liegen in `/data/dashboard/orte.json`, nie im Repo.
+wetter (Open-Meteo), perplexity (Agent API, Schlüssel über Einrichtungsseite), oepnv_verbindung / oepnv_abfahrten (Transitous, VBN-Fahrplan). Gespeicherte Orte (zuhause, uni …) liegen in `/data/dashboard/orte.json`, nie im Repo.
 
 ## Kurzbefehl-Zugang (iPhone)
 - `POST /q/todo` (Text oder JSON `{text, faellig?, bereich?}`) legt ein To-do in `dashboard/todos.json` an, `GET /q/todo` liefert offene To-dos als Text.
