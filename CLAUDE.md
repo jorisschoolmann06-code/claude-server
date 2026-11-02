@@ -32,7 +32,8 @@ Antworten und Commit-Texte auf Deutsch.
 ## Tools (Überblick)
 server_status, files_list/read/write/move/delete, shell, http_fetch, browser_open/screenshot/script/download/login,
 studip_login, pdf_text, sync_status, sync_add_device, gmx_accounts/folders/list/read/move/create_folder/overview,
-jobs_list/set/remove/log/run_now (eigener Cron, Europe/Berlin), self_update.
+jobs_list/set/remove/log/run_now (eigener Cron, Europe/Berlin), self_update,
+wetter (Open-Meteo), oepnv_verbindung / oepnv_abfahrten (Transitous, VBN-Fahrplan). Gespeicherte Orte (zuhause, uni …) liegen in `/data/dashboard/orte.json`, nie im Repo.
 
 ## Kurzbefehl-Zugang (iPhone)
 - `POST /q/todo` (Text oder JSON `{text, faellig?, bereich?}`) legt ein To-do in `dashboard/todos.json` an, `GET /q/todo` liefert offene To-dos als Text.

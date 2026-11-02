@@ -720,6 +720,136 @@ button{{margin-top:22px;width:100%;padding:13px;border:0;border-radius:10px;back
     return HTMLResponse(html)
 
 
+
+# ---------------------------------------------------------------- Wetter & Bus/Bahn (ohne Konto, offene Daten)
+import urllib.request, urllib.parse
+from zoneinfo import ZoneInfo
+_UA = {"User-Agent": "JorisServer/1.0 (private Nutzung)"}
+_BER = ZoneInfo("Europe/Berlin")
+ORTE_FILE = DATA / "dashboard" / "orte.json"
+
+def _getjson(url: str, timeout: int = 20):
+    req = urllib.request.Request(url, headers=_UA)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+_WMO = {0: "klar", 1: "überwiegend klar", 2: "teils bewölkt", 3: "bedeckt", 45: "Nebel", 48: "Reifnebel",
+        51: "leichter Niesel", 53: "Niesel", 55: "starker Niesel", 56: "gefrierender Niesel", 57: "gefrierender Niesel",
+        61: "leichter Regen", 63: "Regen", 65: "starker Regen", 66: "gefrierender Regen", 67: "gefrierender Regen",
+        71: "leichter Schnee", 73: "Schnee", 75: "starker Schnee", 77: "Schneegriesel", 80: "Regenschauer",
+        81: "Regenschauer", 82: "heftige Schauer", 85: "Schneeschauer", 86: "Schneeschauer", 95: "Gewitter",
+        96: "Gewitter mit Hagel", 99: "Gewitter mit Hagel"}
+
+def _orte() -> dict:
+    try: return json.loads(ORTE_FILE.read_text())
+    except Exception: return {}
+
+@mcp.tool()
+def wetter(ort: str = "Bremen", tage: int = 3) -> dict:
+    """Wetter jetzt, Regen in den nächsten 12 Stunden und Vorhersage für die nächsten Tage (Open-Meteo, kein Konto).
+    ort = Ortsname (Standard Bremen) oder ein gespeicherter Ort wie „zuhause“/„uni“."""
+    o = _orte().get(ort.strip().lower())
+    if o:
+        lat, lon, name = o["lat"], o["lon"], o.get("name", ort)
+    else:
+        g = _getjson("https://geocoding-api.open-meteo.com/v1/search?count=1&language=de&name=" + urllib.parse.quote(ort))
+        if not g.get("results"):
+            raise ToolError(f"Ort „{ort}“ nicht gefunden")
+        r0 = g["results"][0]; lat, lon, name = r0["latitude"], r0["longitude"], r0["name"]
+    tage = max(1, min(int(tage), 7))
+    q = urllib.parse.urlencode({"latitude": lat, "longitude": lon, "timezone": "Europe/Berlin", "forecast_days": tage,
+        "current": "temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m",
+        "hourly": "precipitation_probability,precipitation,temperature_2m,weather_code",
+        "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset"})
+    d = _getjson("https://api.open-meteo.com/v1/forecast?" + q)
+    c = d["current"]; h = d["hourly"]
+    now = dt.datetime.now(_BER).replace(tzinfo=None)
+    std = []
+    for i, t in enumerate(h["time"]):
+        ts = dt.datetime.fromisoformat(t)
+        if now - dt.timedelta(hours=1) < ts <= now + dt.timedelta(hours=12):
+            std.append({"zeit": t[11:16], "regen_prozent": h["precipitation_probability"][i], "regen_mm": h["precipitation"][i],
+                        "temp": h["temperature_2m"][i]})
+    nass = [x for x in std if (x["regen_prozent"] or 0) >= 50]
+    hinweis = (f"Regen wahrscheinlich ab {nass[0]['zeit']} Uhr ({nass[0]['regen_prozent']} %)" if nass
+               else "In den nächsten 12 Stunden kaum Regen")
+    dd = d["daily"]
+    return {"ort": name, "jetzt": {"temp": c["temperature_2m"], "gefuehlt": c["apparent_temperature"],
+            "wetter": _WMO.get(c["weather_code"], str(c["weather_code"])), "wind_kmh": c["wind_speed_10m"]},
+            "regen_hinweis": hinweis, "stunden": std,
+            "tage": [{"datum": dd["time"][i], "wetter": _WMO.get(dd["weather_code"][i], ""), "min": dd["temperature_2m_min"][i],
+                      "max": dd["temperature_2m_max"][i], "regen_prozent": dd["precipitation_probability_max"][i],
+                      "regen_mm": dd["precipitation_sum"][i], "sonnenaufgang": dd["sunrise"][i][11:], "sonnenuntergang": dd["sunset"][i][11:]}
+                     for i in range(len(dd["time"]))]}
+
+_TR = "https://api.transitous.org/api"
+def _platz(name: str) -> tuple:
+    """Gespeicherter Ort, sonst Haltestelle/Adresse suchen. Liefert (Parameter für die Suche, Anzeigename)."""
+    o = _orte().get(name.strip().lower())
+    if o:
+        return (o.get("stop_id") or f"{o['lat']},{o['lon']}", o.get("name", name))
+    q = name if "bremen" in name.lower() else name + " Bremen"
+    g = _getjson(f"{_TR}/v1/geocode?language=de&text=" + urllib.parse.quote(q))
+    if not g:
+        raise ToolError(f"„{name}“ nicht gefunden")
+    best = next((x for x in g if x.get("type") == "STOP"), g[0])
+    return (best["id"] if best.get("type") == "STOP" and best.get("id") else f"{best['lat']},{best['lon']}", best["name"])
+
+def _lokal(iso: str) -> str:
+    return dt.datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(_BER).strftime("%H:%M")
+
+def _verspaetung(ist: str, soll: str) -> int:
+    try:
+        return round((dt.datetime.fromisoformat(ist.replace("Z", "+00:00")) - dt.datetime.fromisoformat(soll.replace("Z", "+00:00"))).total_seconds() / 60)
+    except Exception:
+        return 0
+
+@mcp.tool()
+def oepnv_verbindung(von: str = "zuhause", nach: str = "uni", zeit: str = "", ankunft: bool = False, anzahl: int = 3) -> dict:
+    """Bus- und Bahnverbindungen (Bremen/VBN, auch Fernverkehr) über Transitous, kein Konto nötig.
+    von/nach = gespeicherter Ort („zuhause“, „uni“ …), Haltestelle oder Adresse. zeit = „HH:MM“ oder
+    „YYYY-MM-DD HH:MM“ (leer = jetzt), ankunft=True = zu dieser Zeit ankommen. Liefert die nächsten Verbindungen mit Linien und Umstiegen."""
+    a, an = _platz(von); b, bn = _platz(nach)
+    params = {"fromPlace": a, "toPlace": b, "numItineraries": max(1, min(int(anzahl), 6))}
+    if zeit.strip():
+        z = zeit.strip()
+        if len(z) <= 5:
+            z = dt.date.today().isoformat() + " " + z
+        t = dt.datetime.fromisoformat(z).replace(tzinfo=_BER)
+        params["time"] = t.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        if ankunft:
+            params["arriveBy"] = "true"
+    d = _getjson(f"{_TR}/v5/plan?" + urllib.parse.urlencode(params))
+    out = []
+    for it in d.get("itineraries", [])[:params["numItineraries"]]:
+        legs = []
+        for l in it["legs"]:
+            if l["mode"] == "WALK":
+                legs.append(f"zu Fuß {round(l['duration']/60)} Min. → {l['to']['name']}")
+                continue
+            v = _verspaetung(l["startTime"], l.get("scheduledStartTime", l["startTime"]))
+            legs.append(f"{_lokal(l['startTime'])} {l.get('routeShortName') or l.get('displayName') or l['mode']} "
+                        f"Richtung {l.get('headsign','')} ab {l['from']['name']} → {l['to']['name']} an {_lokal(l['endTime'])}"
+                        + (f" (+{v} Min.)" if v > 0 else "") + (" ❌ fällt aus" if l.get("cancelled") else ""))
+        out.append({"ab": _lokal(it["startTime"]), "an": _lokal(it["endTime"]), "dauer_min": round(it["duration"]/60),
+                    "umstiege": it.get("transfers", 0), "schritte": legs})
+    if not out:
+        raise ToolError("Keine Verbindung gefunden")
+    return {"von": an, "nach": bn, "verbindungen": out,
+            "hinweis": "Fahrplandaten; Echtzeit-Verspätungen nur, wo der Verkehrsverbund sie liefert"}
+
+@mcp.tool()
+def oepnv_abfahrten(haltestelle: str = "Gastfeldstraße", anzahl: int = 8) -> dict:
+    """Nächste Abfahrten an einer Haltestelle (Bremen/VBN) – Linie, Richtung, Uhrzeit."""
+    sid, name = _platz(haltestelle)
+    if "," in sid:
+        raise ToolError(f"„{haltestelle}“ ist keine Haltestelle – bitte den Haltestellennamen angeben")
+    d = _getjson(f"{_TR}/v5/stoptimes?" + urllib.parse.urlencode({"stopId": sid, "n": max(1, min(int(anzahl), 20))}))
+    return {"haltestelle": name, "abfahrten": [
+        {"zeit": _lokal(s["place"]["departure"]), "linie": s.get("routeShortName") or s.get("displayName") or s.get("mode"),
+         "richtung": s.get("headsign", ""), "verspaetung_min": max(0, _verspaetung(s["place"]["departure"], s["place"].get("scheduledDeparture", s["place"]["departure"]))),
+         "faellt_aus": bool(s["place"].get("cancelled"))} for s in d.get("stopTimes", [])]}
+
 # ---------------------------------------------------------------- Kurzbefehle (iPhone): eigener, schmaler Zugang
 # Nur für den Kurzbefehl „Neues To-do“: kann ausschließlich To-dos anlegen und offene To-dos lesen.
 # Schlüssel liegt in /data/.quick_key (chmod 600), getrennt vom Connector-Token.
