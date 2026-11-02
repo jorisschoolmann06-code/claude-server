@@ -108,7 +108,29 @@ if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
 fi
 
 say "Container bauen und starten (beim ersten Mal 3–6 Minuten)"
-docker compose up -d --build
+mkdir -p data/logs data/sync data/syncthing
+docker compose up -d --build --remove-orphans
+cat docker-compose.yml Caddyfile bridge/Dockerfile bridge/entrypoint.sh deploy/auto-deploy.sh | sha256sum | cut -c1-16 > data/.deployed
+
+say "Automatische Updates einrichten (alle 5 Minuten aus GitHub)"
+cat > /etc/systemd/system/claude-server-deploy.service <<UNIT
+[Unit]
+Description=Claude-Server: Updates aus GitHub einspielen
+[Service]
+Type=oneshot
+ExecStart=/opt/claude-server/deploy/auto-deploy.sh
+UNIT
+cat > /etc/systemd/system/claude-server-deploy.timer <<UNIT
+[Unit]
+Description=Claude-Server: alle 5 Minuten nach Updates schauen
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now claude-server-deploy.timer >/dev/null
 
 say "Auf HTTPS-Zertifikat warten"
 ok=0

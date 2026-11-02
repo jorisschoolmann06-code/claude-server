@@ -20,6 +20,21 @@ services:
     command: serve webdav /data/obsidian --addr :8080 --baseurl /dav --user "${DAV_USER}" --pass "${DAV_PASS}"
     volumes:
       - ./data:/data
+  syncthing:
+    # Datei-Sync zwischen Mac, PC und Server (Ordner /data/sync)
+    image: syncthing/syncthing:latest
+    restart: unless-stopped
+    hostname: joris-server
+    environment:
+      - PUID=0
+      - PGID=0
+      - STGUIADDRESS=0.0.0.0:8384
+    volumes:
+      - ./data/syncthing:/var/syncthing/config
+      - ./data/sync:/var/syncthing/sync
+    ports:
+      - "${BIND_IP:-0.0.0.0}:22000:22000/tcp"
+      - "${BIND_IP:-0.0.0.0}:22000:22000/udp"
   caddy:
     image: caddy:2
     restart: unless-stopped
