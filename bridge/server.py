@@ -548,7 +548,8 @@ def gmx_read(uid: str, konto: str = "1", folder: str = "INBOX", max_chars: int =
 
 @mcp.tool()
 def gmx_move(uid: str, to_folder: str, konto: str = "1", folder: str = "INBOX") -> str:
-    """GMX-Mail in einen anderen Ordner verschieben (z. B. Archiv). Löscht nichts endgültig."""
+    """GMX-Mail(s) in einen anderen Ordner verschieben (z. B. Archiv). uid darf auch eine Liste sein: "12,15,20".
+    Löscht nichts endgültig."""
     m = _imap(konto)
     try:
         m.select(f'"{folder}"')
@@ -556,6 +557,16 @@ def gmx_move(uid: str, to_folder: str, konto: str = "1", folder: str = "INBOX") 
         if typ != "OK":
             m.uid("COPY", uid, f'"{to_folder}"'); m.uid("STORE", uid, "+FLAGS", "(\\Deleted)"); m.expunge()
         return f"verschoben nach {to_folder}"
+    finally:
+        m.logout()
+
+@mcp.tool()
+def gmx_create_folder(name: str, konto: str = "1") -> str:
+    """Ordner in einem GMX-Postfach anlegen (falls noch nicht vorhanden)."""
+    m = _imap(konto)
+    try:
+        typ, data = m.create(f'"{name}"')
+        return f"Ordner „{name}“: {typ} {data[0].decode(errors='replace') if data and data[0] else ''}".strip()
     finally:
         m.logout()
 
