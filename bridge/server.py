@@ -315,6 +315,55 @@ async def browser_login(url: str, secret_prefix: str = "STUDIP", submit_selector
             except Exception: pass
             still = await page.locator("input[type=password]").count()
             return {"ok": still == 0, "url": page.url, "titel": await page.title()}
+        except Exception as e:
+            return {"ok": False, "fehler": f"{type(e).__name__}: {e}"[:400], "url": page.url}
+        finally:
+            await page.close()
+
+@mcp.tool()
+async def studip_login(force: bool = False) -> dict:
+    """Bei Stud.IP der Uni Bremen anmelden (Shibboleth: Universität Bremen wählen, Uni-Login aus .env,
+    zurück zu Stud.IP). Die Sitzung bleibt im Server-Browser gespeichert. Claude sieht die Zugangsdaten nie."""
+    user = os.environ.get("STUDIP_USER", ""); pw = os.environ.get("STUDIP_PASS", "")
+    async with _lock:
+        ctx = await _context(); page = await ctx.new_page()
+        steps = []
+        try:
+            await page.goto("https://elearning.uni-bremen.de/dispatch.php/my_courses", wait_until="domcontentloaded", timeout=45000)
+            if not force and await page.locator("#notification_marker, a[href*='logout']").count() and "my_courses" in page.url:
+                return {"ok": True, "status": "schon angemeldet", "url": page.url}
+            if not user or not pw:
+                return {"ok": False, "hinweis": "STUDIP_USER/STUDIP_PASS fehlen in /opt/claude-server/.env"}
+            await page.goto("https://elearning.uni-bremen.de/dispatch.php/my_courses?again=yes&sso=shib&cancel_login=1",
+                            wait_until="domcontentloaded", timeout=45000)
+            steps.append(page.url.split("?")[0])
+            # IdP-Auswahl (SimpleSAMLphp discopower)
+            if "disco" in page.url:
+                loc = page.get_by_text("Universität Bremen", exact=True)
+                await loc.first.click(); await page.wait_for_load_state("domcontentloaded")
+                steps.append(page.url.split("?")[0])
+            pw_box = page.locator("input[type=password]").first
+            await pw_box.wait_for(timeout=20000)
+            user_box = page.locator("input#username, input[name=j_username], input[name=username], input[type=text], input[type=email]").first
+            await user_box.fill(user); await pw_box.fill(pw)
+            await pw_box.press("Enter")
+            # ggf. Einwilligungs-/Weiter-Seiten (Shibboleth Attribute Release, SAML-POST)
+            for _ in range(4):
+                try: await page.wait_for_load_state("networkidle", timeout=15000)
+                except Exception: pass
+                steps.append(page.url.split("?")[0])
+                if "elearning.uni-bremen.de" in page.url and "sp.elearning" not in page.url:
+                    break
+                btn = page.locator("button[name=_eventId_proceed], input[name=_eventId_proceed], button[type=submit], input[type=submit]")
+                if await page.locator("input[type=password]").count():
+                    err = (await page.locator(".error, .alert, .form-error, .output--error").all_inner_texts())[:2]
+                    return {"ok": False, "status": "Login abgelehnt", "meldung": err, "schritte": steps}
+                if await btn.count():
+                    await btn.first.click()
+            ok = "elearning.uni-bremen.de" in page.url and await page.locator("a[href*='logout']").count() > 0
+            return {"ok": bool(ok), "url": page.url, "titel": await page.title(), "schritte": steps}
+        except Exception as e:
+            return {"ok": False, "fehler": f"{type(e).__name__}: {e}"[:400], "url": page.url, "schritte": steps}
         finally:
             await page.close()
 
