@@ -44,7 +44,7 @@ def _safe(path: str) -> Path:
     p = (DATA / path.lstrip("/")).resolve() if not str(path).startswith(str(DATA)) else Path(path).resolve()
     if p != DATA and DATA not in p.parents:
         raise ToolError("Pfad muss innerhalb von /data liegen")
-    if p.name == ".secrets.json":
+    if p.name in (".secrets.json", ".quick_key"):
         raise ToolError("Diese Datei enthält Zugangsdaten und ist gesperrt")
     return p
 
@@ -719,11 +719,68 @@ button{{margin-top:22px;width:100%;padding:13px;border:0;border-radius:10px;back
 <p class=ok>{msg}</p><form method=post>{rows}<button>Speichern</button></form></html>"""
     return HTMLResponse(html)
 
+
+# ---------------------------------------------------------------- Kurzbefehle (iPhone): eigener, schmaler Zugang
+# Nur für den Kurzbefehl „Neues To-do“: kann ausschließlich To-dos anlegen und offene To-dos lesen.
+# Schlüssel liegt in /data/.quick_key (chmod 600), getrennt vom Connector-Token.
+QUICK_KEY_FILE = DATA / ".quick_key"
+TODO_FILE = DATA / "dashboard" / "todos.json"
+_quick_hits: list = []
+_todo_lock = asyncio.Lock()
+
+def _quick_ok(request) -> bool:
+    import hmac, time
+    now = time.time()
+    _quick_hits[:] = [t for t in _quick_hits if now - t < 60]
+    if len(_quick_hits) >= 30:
+        return False
+    _quick_hits.append(now)
+    try: key = QUICK_KEY_FILE.read_text().strip()
+    except Exception: return False
+    given = request.headers.get("x-key", "")
+    return bool(key) and hmac.compare_digest(given.encode(), key.encode())
+
+async def quick_todo(request):
+    if not _quick_ok(request):
+        return PlainTextResponse("Nicht erlaubt", status_code=403)
+    if request.method == "GET":
+        try: doc = json.loads(TODO_FILE.read_text())
+        except Exception: doc = {"todos": []}
+        offen = [t for t in doc.get("todos", []) if not t.get("erledigt")]
+        if not offen:
+            return PlainTextResponse("Keine offenen To-dos 🎉")
+        return PlainTextResponse("\n".join(f"• {t.get('text','')}" + (f" (bis {t['faellig']})" if t.get("faellig") else "") for t in offen[:15]))
+    raw = (await request.body()).decode(errors="replace")[:2000]
+    text, faellig, bereich = raw, None, None
+    try:
+        j = json.loads(raw)
+        if isinstance(j, dict):
+            text = str(j.get("text", "")); faellig = j.get("faellig") or None; bereich = j.get("bereich") or None
+    except Exception:
+        pass
+    text = " ".join(text.split())[:300]
+    if not text:
+        return PlainTextResponse("Kein Text erhalten", status_code=400)
+    if faellig and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(faellig)):
+        faellig = None
+    async with _todo_lock:
+        try: doc = json.loads(TODO_FILE.read_text())
+        except Exception: doc = {"todos": []}
+        item = {"id": "s" + dt.datetime.now().strftime("%y%m%d%H%M%S%f"), "text": text, "erledigt": False,
+                "erstellt": dt.date.today().isoformat(), "quelle": "Siri"}
+        if bereich: item["bereich"] = str(bereich)[:20]
+        if faellig: item["faellig"] = faellig
+        doc.setdefault("todos", []).append(item); doc["aktualisiert"] = _now()
+        TODO_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = TODO_FILE.with_suffix(".tmp"); tmp.write_text(json.dumps(doc, indent=2, ensure_ascii=False)); tmp.replace(TODO_FILE)
+    return PlainTextResponse(f"✅ Notiert: {text}")
+
 def build_app():
     app = mcp.streamable_http_app(streamable_http_path=f"/{TOKEN}/mcp", stateless_http=True,
                                   json_response=True, host="0.0.0.0")
     app.add_route("/health", health)
     app.add_route(f"/{TOKEN}/setup", setup_page, methods=["GET", "POST"])
+    app.add_route("/q/todo", quick_todo, methods=["GET", "POST"])
     return app
 
 if __name__ == "__main__":

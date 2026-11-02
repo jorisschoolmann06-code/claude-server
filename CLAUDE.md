@@ -34,6 +34,10 @@ server_status, files_list/read/write/move/delete, shell, http_fetch, browser_ope
 studip_login, pdf_text, sync_status, sync_add_device, gmx_accounts/folders/list/read/move/create_folder/overview,
 jobs_list/set/remove/log/run_now (eigener Cron, Europe/Berlin), self_update.
 
+## Kurzbefehl-Zugang (iPhone)
+- `POST /q/todo` (Text oder JSON `{text, faellig?, bereich?}`) legt ein To-do in `dashboard/todos.json` an, `GET /q/todo` liefert offene To-dos als Text.
+- Header `X-Key` = Inhalt von `/data/.quick_key` (chmod 600, für Datei-Tools gesperrt). Max. 30 Anfragen/Minute. Kann nichts anderes.
+
 ## Dashboard (`apps/dashboard/index.html`)
 - iPhone-first, iOS-Design (Large Titles, Inset-Grouped-Listen, Tab-Leiste, System-Farben, hell/dunkel).
 - Läuft derzeit als Claude-Artefakt „Joris · Dashboard“ mit der `mcp`-Fähigkeit (Joris Server, Google Calendar, Gmail).
