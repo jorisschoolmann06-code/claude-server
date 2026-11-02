@@ -11,8 +11,39 @@ die(){ printf '\n\033[1;31mFEHLER: %s\033[0m\n' "$*"; exit 1; }
 
 [ "$(id -u)" = 0 ] || die "Bitte als root ausführen (vorher: sudo -i)"
 command -v git >/dev/null || { apt-get update -qq && apt-get install -y -qq git; }
-command -v docker >/dev/null || die "Docker ist nicht installiert"
-docker compose version >/dev/null 2>&1 || die "Das Docker-Compose-Plugin fehlt (apt-get install docker-compose-plugin)"
+
+# Bericht über den Server (vor allem anderen, damit Claude ihn sehen kann – ohne Passwörter)
+mkdir -p "$DIR/data" 2>/dev/null || true
+report(){
+  echo "Stand: $(date -Is)"; uname -srm; grep -E '^PRETTY_NAME=' /etc/os-release || true
+  echo; df -h / | tail -1; free -h | head -2
+  echo; echo "# Docker"; (docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}' 2>/dev/null || echo "kein Docker")
+  echo; echo "# Offene Ports (Prozess)"; ss -ltnpH | awk '{print $4, $6}' | sed 's/users:((//; s/,pid.*//' | sort -u
+  echo; echo "# Dienste"; systemctl list-units --type=service --state=running --no-legend 2>/dev/null | awk '{print $1}' | grep -Ev '^(systemd|dbus|getty|serial|ssh|cron|rsyslog|polkit|udisks|multipathd|networkd|qemu|unattended|user@)' | head -40
+  echo; echo "# Firewall"; (ufw status 2>/dev/null | head -8) || echo "ufw nicht vorhanden"
+}
+
+if ! command -v docker >/dev/null; then
+  for p in 80 443; do
+    if ss -ltnH "sport = :$p" | grep -q .; then
+      echo; echo "Port $p ist schon belegt:"; ss -ltnpH "sport = :$p" | awk '{print $4, $6}'
+      echo; report
+      die "Port $p belegt – ich installiere noch nichts. Bitte Claude ein Foto von diesem Bildschirm schicken."
+    fi
+  done
+fi
+if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; then
+  echo
+  echo "Docker (inkl. Compose) ist auf diesem Server noch nicht installiert."
+  echo "Ich würde die Ubuntu-Pakete docker.io und docker-compose-v2 installieren."
+  echo "JARVIS wird dabei nicht verändert."
+  ans="n"
+  if [ -r /dev/tty ]; then printf 'Docker jetzt installieren? (j/n): ' > /dev/tty; read -r ans < /dev/tty || true; fi
+  case "$ans" in j|J|y|Y|ja|Ja) ;; *) die "Abgebrochen – ohne Docker kann der Claude-Server nicht laufen";; esac
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io docker-compose-v2
+  systemctl enable --now docker
+fi
 
 say "Code holen"
 if [ -d "$DIR/.git" ]; then git -C "$DIR" pull --ff-only; else git clone --depth 1 "$REPO" "$DIR"; fi
@@ -53,20 +84,14 @@ fi
 set -a; . ./.env; set +a
 
 say "Bericht über den Server schreiben (für Claude, ohne Passwörter)"
-{
-  echo "Stand: $(date -Is)"; echo "IP: $IP"; uname -srm; grep -E '^(PRETTY_NAME)=' /etc/os-release || true
-  echo; df -h / | tail -1; free -h | head -2
-  echo; echo "# Docker-Container (nur Namen/Images/Ports)"; docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'
-  echo; echo "# Offene Ports"; ss -ltnH | awk '{print $4}' | sort -u
-  echo; echo "# Firewall"; (ufw status 2>/dev/null | head -5) || echo "ufw nicht vorhanden"
-} > data/host-report.txt 2>&1 || true
+report > data/host-report.txt 2>&1 || true
 
 say "Ports 80/443 prüfen"
 ours=$(docker ps --filter "label=com.docker.compose.project=claude-server" -q | wc -l)
 for p in 80 443; do
   if ss -ltnH "sport = :$p" | grep -q . && [ "$ours" = 0 ]; then
     echo; echo "Port $p ist schon belegt (vermutlich JARVIS oder ein Webserver):"
-    ss -ltnpH "sport = :$p" || true
+    ss -ltnpH "sport = :$p" | awk '{print $4, $6}' || true
     die "Port $p belegt – ich ändere nichts an JARVIS. Bitte Claude Bescheid geben, dann passen wir es an."
   fi
 done
