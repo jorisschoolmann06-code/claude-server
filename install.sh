@@ -11,6 +11,10 @@ die(){ printf '\n\033[1;31mFEHLER: %s\033[0m\n' "$*"; exit 1; }
 
 [ "$(id -u)" = 0 ] || die "Bitte als root ausführen (vorher: sudo -i)"
 command -v git >/dev/null || { apt-get update -qq && apt-get install -y -qq git; }
+IP=$(curl -4 -fsS --max-time 8 https://api.ipify.org || hostname -I | awk '{print $1}')
+# Port gilt nur als belegt, wenn er auf allen Adressen oder auf der öffentlichen IP lauscht
+# (Tailscale auf 100.x stört nicht, weil wir nur an die öffentliche IP binden).
+busy(){ ss -ltnH "sport = :$1" | awk '{print $4}' | grep -Eq "^(0\.0\.0\.0|\*|\[::\]|${IP//./\\.}):$1\$"; }
 
 # Bericht über den Server (vor allem anderen, damit Claude ihn sehen kann – ohne Passwörter)
 mkdir -p "$DIR/data" 2>/dev/null || true
@@ -25,7 +29,7 @@ report(){
 
 if ! command -v docker >/dev/null; then
   for p in 80 443; do
-    if ss -ltnH "sport = :$p" | grep -q .; then
+    if busy "$p"; then
       echo; echo "Port $p ist schon belegt:"; ss -ltnpH "sport = :$p" | awk '{print $4, $6}'
       echo; report
       die "Port $p belegt – ich installiere noch nichts. Bitte Claude ein Foto von diesem Bildschirm schicken."
@@ -49,8 +53,6 @@ say "Code holen"
 if [ -d "$DIR/.git" ]; then git -C "$DIR" pull --ff-only; else git clone --depth 1 "$REPO" "$DIR"; fi
 mkdir -p "$DIR/data/obsidian" "$DIR/data/tiktok" "$DIR/data/studip" "$DIR/data/work"
 cd "$DIR"
-
-IP=$(curl -4 -fsS --max-time 8 https://api.ipify.org || hostname -I | awk '{print $1}')
 
 if [ ! -f .env ]; then
   say "Zugangsdaten erzeugen"
@@ -76,11 +78,13 @@ DAV_USER=joris
 DAV_PASS=${DAVPASS}
 STUDIP_USER='${SU}'
 STUDIP_PASS='${SP}'
+BIND_IP=${IP}
 HTTP_PORT=80
 HTTPS_PORT=443
 EOF
   chmod 600 .env
 fi
+grep -q '^BIND_IP=' .env || echo "BIND_IP=${IP}" >> .env
 set -a; . ./.env; set +a
 
 say "Bericht über den Server schreiben (für Claude, ohne Passwörter)"
@@ -89,7 +93,7 @@ report > data/host-report.txt 2>&1 || true
 say "Ports 80/443 prüfen"
 ours=$(docker ps --filter "label=com.docker.compose.project=claude-server" -q | wc -l)
 for p in 80 443; do
-  if ss -ltnH "sport = :$p" | grep -q . && [ "$ours" = 0 ]; then
+  if busy "$p" && [ "$ours" = 0 ]; then
     echo; echo "Port $p ist schon belegt (vermutlich JARVIS oder ein Webserver):"
     ss -ltnpH "sport = :$p" | awk '{print $4, $6}' || true
     die "Port $p belegt – ich ändere nichts an JARVIS. Bitte Claude Bescheid geben, dann passen wir es an."
