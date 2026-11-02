@@ -1,0 +1,38 @@
+# Joris' Claude-Server – läuft getrennt neben JARVIS (eigenes Compose-Projekt "claude-server").
+name: claude-server
+services:
+  bridge:
+    build: ./bridge
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATA_DIR=/data
+      - APP_DIR=/app
+      - TZ=Europe/Berlin
+    volumes:
+      - ./data:/data
+      - ./:/app
+    shm_size: "1gb"
+    expose: ["8000"]
+  webdav:
+    image: rclone/rclone:latest
+    restart: unless-stopped
+    command: serve webdav /data/obsidian --addr :8080 --baseurl /dav --user "${DAV_USER}" --pass "${DAV_PASS}"
+    volumes:
+      - ./data:/data
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+      - BRIDGE_TOKEN=${BRIDGE_TOKEN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+volumes:
+  caddy_data: {}
+  caddy_config: {}

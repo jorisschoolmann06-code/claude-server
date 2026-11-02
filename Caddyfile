@@ -1,0 +1,17 @@
+{$DOMAIN} {
+	encode gzip
+	handle /health {
+		reverse_proxy bridge:8000
+	}
+	handle /dav* {
+		reverse_proxy webdav:8080
+	}
+	handle /{$BRIDGE_TOKEN}/* {
+		reverse_proxy bridge:8000 {
+			flush_interval -1
+		}
+	}
+	handle {
+		respond "nichts hier" 404
+	}
+}
