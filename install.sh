@@ -17,7 +17,6 @@ IP=$(curl -4 -fsS --max-time 8 https://api.ipify.org || hostname -I | awk '{prin
 busy(){ ss -ltnH "sport = :$1" | awk '{print $4}' | grep -Eq "^(0\.0\.0\.0|\*|\[::\]|${IP//./\\.}):$1\$"; }
 
 # Bericht über den Server (vor allem anderen, damit Claude ihn sehen kann – ohne Passwörter)
-mkdir -p "$DIR/data" 2>/dev/null || true
 report(){
   echo "Stand: $(date -Is)"; uname -srm; grep -E '^PRETTY_NAME=' /etc/os-release || true
   echo; df -h / | tail -1; free -h | head -2
@@ -50,7 +49,12 @@ if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; t
 fi
 
 say "Code holen"
-if [ -d "$DIR/.git" ]; then git -C "$DIR" pull --ff-only; else git clone --depth 1 "$REPO" "$DIR"; fi
+if [ -d "$DIR/.git" ]; then
+  git -C "$DIR" pull --ff-only
+else
+  rm -rf "$DIR.tmp"; git clone --depth 1 "$REPO" "$DIR.tmp"
+  mkdir -p "$DIR"; cp -a "$DIR.tmp/." "$DIR/"; rm -rf "$DIR.tmp"
+fi
 mkdir -p "$DIR/data/obsidian" "$DIR/data/tiktok" "$DIR/data/studip" "$DIR/data/work"
 cd "$DIR"
 
