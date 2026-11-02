@@ -44,6 +44,8 @@ def _safe(path: str) -> Path:
     p = (DATA / path.lstrip("/")).resolve() if not str(path).startswith(str(DATA)) else Path(path).resolve()
     if p != DATA and DATA not in p.parents:
         raise ToolError("Pfad muss innerhalb von /data liegen")
+    if p.name == ".secrets.json":
+        raise ToolError("Diese Datei enthält Zugangsdaten und ist gesperrt")
     return p
 
 def _now() -> str:
@@ -650,7 +652,7 @@ async def setup_page(request):
 <title>Joris' Server – Zugänge</title><style>body{{font-family:-apple-system,system-ui,sans-serif;background:#111;color:#eee;max-width:520px;margin:40px auto;padding:0 18px}}
 label{{display:block;margin:16px 0 6px;font-size:14px}}label span{{color:#4ade80;font-size:12px}}input{{width:100%;padding:11px;border-radius:10px;border:1px solid #333;background:#1b1b1b;color:#eee;font-size:15px;box-sizing:border-box}}
 button{{margin-top:22px;width:100%;padding:13px;border:0;border-radius:10px;background:#fff;color:#000;font-weight:700;font-size:15px}}p{{color:#aaa;font-size:13px;line-height:1.5}}.ok{{color:#4ade80}}</style>
-<h2>🔐 Zugänge für deinen Server</h2><p>Was du hier einträgst, wird nur auf deinem Server gespeichert (Datei mit Zugriff nur für root) und nie wieder angezeigt – auch Claude sieht es nicht. Leere Felder bleiben unverändert.</p>
+<h2>🔐 Zugänge für deinen Server</h2><p>Was du hier einträgst, wird nur auf deinem Server gespeichert (geschützte Datei) und hier nie wieder angezeigt. Claude nutzt die Zugänge nur zum Anmelden und liest sie nicht aus. Leere Felder bleiben unverändert.</p>
 <p class=ok>{msg}</p><form method=post>{rows}<button>Speichern</button></form></html>"""
     return HTMLResponse(html)
 
