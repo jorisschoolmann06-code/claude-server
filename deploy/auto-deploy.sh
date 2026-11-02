@@ -12,3 +12,11 @@ if [ "$sum" != "$last" ]; then
   docker compose up -d --build --remove-orphans >> data/logs/deploy.log 2>&1
   echo "$sum" > data/.deployed
 fi
+# Caddyfile ist als Einzeldatei eingebunden: nach einer Änderung Caddy neu erstellen,
+# sonst sieht der Container noch die alte Datei.
+csum=$(sha256sum Caddyfile | cut -c1-16)
+if [ "$csum" != "$(cat data/.caddy_deployed 2>/dev/null || true)" ]; then
+  echo "$(date -Is) Caddyfile geändert – Caddy neu erstellt" >> data/logs/deploy.log
+  docker compose up -d --force-recreate caddy >> data/logs/deploy.log 2>&1
+  echo "$csum" > data/.caddy_deployed
+fi
