@@ -25,14 +25,16 @@ Antworten und Commit-Texte auf Deutsch.
 - Port 443 ist auf der Tailscale-IP belegt → Caddy bindet nur an die öffentliche IP (`BIND_IP`).
 - Keine Zugangsdaten auslesen oder ausgeben; `.secrets.json` ist für `files_read`/`files_write` gesperrt.
 - Datei-Tools dürfen nur unter `/data` arbeiten.
-- Mail-Tools (`gmx_*`) lesen und verschieben nur, nie endgültig löschen, nie senden.
+- Mail-Tools (`gmx_*`) lesen und verschieben nur, nie endgültig löschen, nie senden. `gmx_abmelden` löst nur die 1-Klick-Abmeldung (RFC 8058, HTTPS-POST an öffentliche Adressen, keine Weiterleitungen) aus.
+- `gmx_move` löscht nie auf Verdacht: Schlägt MOVE fehl, wird nur bei erfolgreicher Kopie das Original per UID EXPUNGE entfernt.
+- IMAP-Ordnernamen mit „&“ müssen als `&-` übergeben werden (z. B. `Newsletter &- Werbung`).
 - Fehler, die der Nutzer sehen soll, als `ToolError` werfen.
 - Neue Tools mit klarer deutscher Beschreibung (die sieht Claude als Tool-Doku).
 - Connector-URL bzw. Token nie in Code, README oder Commits schreiben.
 
 ## Tools (Überblick)
 server_status, files_list/read/write/move/delete, shell, http_fetch, browser_open/screenshot/script/download/login,
-studip_login, pdf_text, sync_status, sync_add_device, gmx_accounts/folders/list/read/move/create_folder/overview,
+studip_login, pdf_text, sync_status, sync_add_device, gmx_accounts/folders/list/read/move/create_folder/overview/abmelden,
 jobs_list/set/remove/log/run_now (eigener Cron, Europe/Berlin), self_update,
 wetter (Open-Meteo), perplexity (Agent API, Schlüssel über Einrichtungsseite), oepnv_verbindung / oepnv_abfahrten (Transitous, VBN-Fahrplan). Gespeicherte Orte (zuhause, uni …) liegen in `/data/dashboard/orte.json`, nie im Repo.
 

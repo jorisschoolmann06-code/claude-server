@@ -552,11 +552,23 @@ def gmx_move(uid: str, to_folder: str, konto: str = "1", folder: str = "INBOX") 
     Löscht nichts endgültig."""
     m = _imap(konto)
     try:
-        m.select(f'"{folder}"')
-        typ, _ = m.uid("MOVE", uid, f'"{to_folder}"')
+        typ, _ = m.select(f'"{folder}"')
         if typ != "OK":
-            m.uid("COPY", uid, f'"{to_folder}"'); m.uid("STORE", uid, "+FLAGS", "(\\Deleted)"); m.expunge()
-        return f"verschoben nach {to_folder}"
+            raise ToolError(f"Ordner „{folder}“ nicht gefunden")
+        typ, data = m.uid("MOVE", uid, f'"{to_folder}"')
+        if typ == "OK":
+            return f"verschoben nach {to_folder}"
+        # Rückfallebene nur, wenn die Kopie sicher angekommen ist – sonst bleibt alles, wie es war.
+        typ, data = m.uid("COPY", uid, f'"{to_folder}"')
+        if typ != "OK":
+            msg = data[0].decode(errors="replace") if data and data[0] else ""
+            raise ToolError(f"Verschieben nach „{to_folder}“ fehlgeschlagen ({msg}) – nichts verändert. Ordnername prüfen (gmx_folders).")
+        m.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
+        # Nur die eben kopierten Mails entfernen (UID EXPUNGE), nie andere gelöschte Mails mitnehmen.
+        if "UIDPLUS" in m.capabilities:
+            m.uid("EXPUNGE", uid)
+            return f"verschoben nach {to_folder}"
+        return f"nach {to_folder} kopiert; Original im Quellordner als gelöscht markiert (Server kann nicht gezielt entfernen)"
     finally:
         m.logout()
 
@@ -569,6 +581,85 @@ def gmx_create_folder(name: str, konto: str = "1") -> str:
         return f"Ordner „{name}“: {typ} {data[0].decode(errors='replace') if data and data[0] else ''}".strip()
     finally:
         m.logout()
+
+def _public_https(url: str) -> bool:
+    """Nur https-Adressen im öffentlichen Internet (nie localhost, JARVIS, Tailscale oder interne Netze)."""
+    import ipaddress, socket, urllib.parse
+    u = urllib.parse.urlsplit(url)
+    if u.scheme != "https" or not u.hostname:
+        return False
+    try:
+        infos = socket.getaddrinfo(u.hostname, u.port or 443, proto=socket.IPPROTO_TCP)
+    except OSError:
+        return False
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if not ip.is_global or ip in ipaddress.ip_network("100.64.0.0/10"):
+            return False
+    return True
+
+@mcp.tool()
+def gmx_abmelden(uid: str, konto: str = "1", folder: str = "INBOX", ausfuehren: bool = True) -> dict:
+    """Von einem Newsletter abmelden – über den offiziellen List-Unsubscribe-Header einer Mail (RFC 8058).
+    Mit ausfuehren=True wird nur die 1-Klick-Abmeldung per HTTPS-POST ausgelöst (keine Mail wird gesendet,
+    keine Links aus dem Mail-Text werden geöffnet). Ohne 1-Klick-Möglichkeit wird nichts ausgelöst; die
+    Antwort nennt dann die Abmelde-Seite bzw. dass es nur per Mail ginge. ausfuehren=False = nur prüfen.
+    Ändert nichts an der Mail selbst (Gelesen-Status bleibt)."""
+    import email, urllib.request, urllib.error, urllib.parse
+    m = _imap(konto)
+    try:
+        typ, _ = m.select(f'"{folder}"', readonly=True)
+        if typ != "OK":
+            raise ToolError(f"Ordner „{folder}“ nicht gefunden")
+        typ, d = m.uid("FETCH", str(uid), "(BODY.PEEK[HEADER.FIELDS (FROM LIST-UNSUBSCRIBE LIST-UNSUBSCRIBE-POST)])")
+        if typ != "OK" or not d or not isinstance(d[0], tuple):
+            raise ToolError(f"Mail {uid} nicht gefunden")
+        hdr = email.message_from_bytes(d[0][1])
+    finally:
+        m.logout()
+    von = _dec(hdr.get("From"))
+    lu = re.sub(r"\s+", "", _dec(hdr.get("List-Unsubscribe") or ""))
+    one_click = "one-click" in (hdr.get("List-Unsubscribe-Post") or "").lower()
+    ziele = re.findall(r"<([^>]+)>", lu)
+    https = [z for z in ziele if z.lower().startswith("https://")]
+    mailto = [z for z in ziele if z.lower().startswith("mailto:")]
+    out = {"von": von, "eins_klick": bool(one_click and https), "mailto_moeglich": bool(mailto)}
+    if not ziele:
+        out["ergebnis"] = "kein Abmelde-Header – nur manuell über die Webseite des Absenders"
+        return out
+    if not https:
+        out["ergebnis"] = "nur per Mail möglich – wird nicht automatisch gemacht (keine Mails senden)"
+        return out
+    ziel = https[0]
+    out["domain"] = urllib.parse.urlsplit(ziel).hostname
+    if not (one_click and ausfuehren):
+        out["abmeldeseite"] = ziel
+        out["ergebnis"] = ("nur geprüft" if one_click else "keine 1-Klick-Abmeldung – Abmeldeseite müsste manuell geöffnet werden")
+        return out
+    if not _public_https(ziel):
+        out["ergebnis"] = "Abmelde-Adresse ist keine öffentliche https-Adresse – nicht aufgerufen"
+        return out
+    req = urllib.request.Request(ziel, data=b"List-Unsubscribe=One-Click", method="POST",
+                                 headers={"Content-Type": "application/x-www-form-urlencoded",
+                                          "User-Agent": "joris-server/1.0 (List-Unsubscribe)"})
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k):
+            return None  # Weiterleitungen nicht folgen (könnten auf interne Adressen zeigen)
+    try:
+        r = urllib.request.build_opener(_NoRedirect).open(req, timeout=30); status = r.status
+    except urllib.error.HTTPError as e:
+        status = e.code
+    except Exception as e:
+        out["ergebnis"] = f"Aufruf fehlgeschlagen ({type(e).__name__})"
+        return out
+    out["status"] = status
+    if 200 <= status < 300:
+        out["ergebnis"] = "abgemeldet (1-Klick)"
+    elif 300 <= status < 400:
+        out["ergebnis"] = "Abmeldung angenommen (Absender leitet weiter)"
+    else:
+        out["ergebnis"] = f"Absender antwortete mit HTTP {status}"
+    return out
 
 @mcp.tool()
 def gmx_overview() -> list:
