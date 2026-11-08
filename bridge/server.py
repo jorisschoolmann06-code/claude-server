@@ -300,7 +300,12 @@ async def browser_script(url: str, script: str, max_chars: int = 40000) -> dict:
             try: await page.wait_for_load_state("networkidle", timeout=8000)
             except Exception: pass
             body = script if "return" in script else f"return ({script});"
-            val = await page.evaluate(f"async () => {{ {body} }}")
+            # Zeitlimit, damit ein hängendes Skript (z. B. Navigation mitten im Skript) den Browser
+            # nicht dauerhaft für alle anderen Tools blockiert
+            try:
+                val = await asyncio.wait_for(page.evaluate(f"async () => {{ {body} }}"), timeout=60)
+            except asyncio.TimeoutError:
+                raise ToolError("Skript lief länger als 60 s und wurde abgebrochen.")
             s = json.dumps(val, ensure_ascii=False, default=str)
             return {"url": page.url, "ergebnis": val if len(s) <= max_chars else _cut(s, max_chars)}
         finally:
@@ -346,6 +351,8 @@ async def browser_login(url: str, secret_prefix: str = "STUDIP", submit_selector
         finally:
             await page.close()
 
+STUDIP_IDP = "https://idp.uni-bremen.de/idp/shibboleth"
+
 @mcp.tool()
 async def studip_login(force: bool = False) -> dict:
     """Bei Stud.IP der Uni Bremen anmelden (Shibboleth: Universität Bremen wählen, Uni-Login aus .env,
@@ -363,13 +370,18 @@ async def studip_login(force: bool = False) -> dict:
             await page.goto("https://elearning.uni-bremen.de/dispatch.php/my_courses?again=yes&sso=shib&cancel_login=1",
                             wait_until="domcontentloaded", timeout=45000)
             steps.append(page.url.split("?")[0])
-            # IdP-Auswahl (SimpleSAMLphp discopower)
+            # IdP-Auswahl (SimpleSAMLphp discopower): direkt per Parameter wählen statt Text anklicken.
+            # Hat der Browser eine frühere Wahl gespeichert, steht „Universität Bremen“ zusätzlich als
+            # fetter Text ohne Link oben auf der Seite – ein Klick darauf bewirkte nichts.
             if "disco" in page.url:
-                loc = page.get_by_text("Universität Bremen", exact=True)
-                await loc.first.click(); await page.wait_for_load_state("domcontentloaded")
+                if "idpentityid=" not in page.url:
+                    from urllib.parse import quote
+                    await page.goto(page.url + "&idpentityid=" + quote(STUDIP_IDP, safe=""),
+                                    wait_until="domcontentloaded", timeout=45000)
                 steps.append(page.url.split("?")[0])
             pw_box = page.locator("input[type=password]").first
-            await pw_box.wait_for(timeout=20000)
+            # Shibboleth zeigt vorher kurz „Loading Session Information“ und leitet per JS weiter
+            await pw_box.wait_for(timeout=30000)
             user_box = page.locator("input#username, input[name=j_username], input[name=username], input[type=text], input[type=email]").first
             await user_box.fill(user); await pw_box.fill(pw)
             await pw_box.press("Enter")
